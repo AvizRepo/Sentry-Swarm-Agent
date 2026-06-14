@@ -1,6 +1,6 @@
-# 🛰️ Incident War-Room — an Agent Swarm
+# 🛰️ SentrySwarm AI — Autonomous Incident Diagnosis Swarm
 
-**Microsoft Build AI Hackathon · Theme: Agent Swarms · Model: `gemma-4-31b-it`**
+**Microsoft Build AI Hackathon · Theme: Agent Swarms · Models: Gemma, Gemini, and Claude**
 
 A swarm of specialized AI agents that diagnoses a live system outage the way a
 real on-call team does — they **triage, form competing hypotheses, gather
