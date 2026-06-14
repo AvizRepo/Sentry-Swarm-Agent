@@ -1,0 +1,39 @@
+{
+  "id": "INC-4821",
+  "title": "Checkout latency spike & elevated 5xx on storefront",
+  "started_at": "2026-06-14T14:02:00Z",
+  "summary": "Customers report slow or failing checkout. p99 latency on checkout-service climbed from 220ms to 9s within 8 minutes. Error rate up to 12%. No full outage; intermittent failures.",
+  "true_root_cause_hidden": "Database connection pool exhaustion on checkout-service. A deploy 20 min earlier lowered pool max from 50 to 10 while a new synchronous fraud-check call held connections longer, so the pool saturated under normal traffic. Redis and the payment gateway are red herrings.",
+  "alerts": [
+    {"ts": "2026-06-14T14:03:10Z", "severity": "warning", "source": "datadog", "text": "checkout-service p99 latency > 2s (current 3.4s)"},
+    {"ts": "2026-06-14T14:05:40Z", "severity": "critical", "source": "datadog", "text": "checkout-service error rate > 5% (current 9%)"},
+    {"ts": "2026-06-14T14:06:02Z", "severity": "warning", "source": "datadog", "text": "redis-cache memory usage 81% (eviction active)"},
+    {"ts": "2026-06-14T14:07:15Z", "severity": "critical", "source": "pagerduty", "text": "SLO burn rate 14x on checkout availability"}
+  ],
+  "metrics": [
+    {"name": "checkout.latency.p99_ms", "before": 220, "after": 9100},
+    {"name": "checkout.error_rate_pct", "before": 0.3, "after": 12.0},
+    {"name": "db.checkout.active_connections", "before": 18, "after": 10, "note": "pinned at pool max"},
+    {"name": "db.checkout.connection_wait_ms_p95", "before": 4, "after": 7200},
+    {"name": "db.checkout.pool_max", "before": 50, "after": 10},
+    {"name": "redis.memory_used_pct", "before": 62, "after": 83},
+    {"name": "payment_gateway.latency_p99_ms", "before": 310, "after": 360},
+    {"name": "host.cpu_pct.checkout", "before": 41, "after": 47}
+  ],
+  "deploys": [
+    {"ts": "2026-06-14T13:42:00Z", "service": "checkout-service", "change": "v2.31.0: add synchronous fraud-check call before order commit; update db config (HikariCP maximumPoolSize 50 -> 10)", "author": "release-bot"},
+    {"ts": "2026-06-14T13:55:00Z", "service": "recommendations", "change": "v1.9.4: model refresh", "author": "ml-team"}
+  ],
+  "logs": [
+    {"ts": "2026-06-14T14:02:11Z", "service": "checkout-service", "level": "WARN", "msg": "HikariPool-1 - Connection is not available, request timed out after 8000ms"},
+    {"ts": "2026-06-14T14:02:13Z", "service": "checkout-service", "level": "ERROR", "msg": "java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 8000ms (total=10, active=10, idle=0, waiting=37)"},
+    {"ts": "2026-06-14T14:02:40Z", "service": "checkout-service", "level": "INFO", "msg": "fraud-check call to risk-service took 1840ms (holding db txn open)"},
+    {"ts": "2026-06-14T14:03:02Z", "service": "checkout-service", "level": "ERROR", "msg": "order commit failed: could not get connection; rolling back txn for cart 9f2a"},
+    {"ts": "2026-06-14T14:03:30Z", "service": "redis-cache", "level": "WARN", "msg": "maxmemory reached, evicting keys (policy allkeys-lru)"},
+    {"ts": "2026-06-14T14:04:05Z", "service": "payment-gateway", "level": "INFO", "msg": "authorize() 312ms ok"},
+    {"ts": "2026-06-14T14:04:50Z", "service": "checkout-service", "level": "WARN", "msg": "HikariPool-1 stats: total=10, active=10, idle=0, waiting=41"},
+    {"ts": "2026-06-14T14:05:20Z", "service": "risk-service", "level": "INFO", "msg": "fraud score computed in 1610ms for order batch"},
+    {"ts": "2026-06-14T14:06:11Z", "service": "checkout-service", "level": "ERROR", "msg": "SLA breach: checkout p99 9.1s; 37 requests queued on db pool"},
+    {"ts": "2026-06-14T14:07:00Z", "service": "recommendations", "level": "INFO", "msg": "model v1.9.4 serving normally, p99 88ms"}
+  ]
+}

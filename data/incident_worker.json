@@ -1,0 +1,37 @@
+{
+  "id": "INC-5093",
+  "title": "Background workers OOMKilled, job queue backing up",
+  "started_at": "2026-06-14T09:18:00Z",
+  "summary": "The async job workers are crash-looping. Queue depth is climbing fast, email/notification jobs are delayed by 40+ minutes, and pods restart every few minutes. No user-facing 5xx yet, but SLAs on async delivery are breaching.",
+  "true_root_cause_hidden": "Release v3.4.0 of worker-service added an in-process de-duplication cache (a plain dict keyed by job payload) that is never evicted. Under normal volume it grows unbounded until the pod hits its 512Mi memory limit and is OOMKilled, restarting the loop. Node autoscaling lag and a brief Redis latency blip are red herrings.",
+  "alerts": [
+    {"ts": "2026-06-14T09:19:30Z", "severity": "warning", "source": "prometheus", "text": "worker-service pod memory > 90% of limit"},
+    {"ts": "2026-06-14T09:21:10Z", "severity": "critical", "source": "kubernetes", "text": "Pod worker-service-7c9 OOMKilled (exit 137), restart #4"},
+    {"ts": "2026-06-14T09:23:05Z", "severity": "warning", "source": "datadog", "text": "jobs.queue.depth > 5000 (current 7400)"},
+    {"ts": "2026-06-14T09:24:40Z", "severity": "warning", "source": "datadog", "text": "redis p99 latency 180ms (baseline 40ms)"},
+    {"ts": "2026-06-14T09:26:00Z", "severity": "critical", "source": "pagerduty", "text": "async delivery SLA burn rate 9x"}
+  ],
+  "metrics": [
+    {"name": "worker.pod.memory_pct_of_limit", "before": 48, "after": 98, "note": "climbs linearly then resets on restart"},
+    {"name": "worker.pod.restarts_per_10m", "before": 0, "after": 6},
+    {"name": "jobs.queue.depth", "before": 120, "after": 7400},
+    {"name": "jobs.processed_per_min", "before": 950, "after": 210},
+    {"name": "redis.p99_latency_ms", "before": 40, "after": 180},
+    {"name": "node.autoscaler.pending_pods", "before": 0, "after": 2},
+    {"name": "worker.cpu_pct", "before": 55, "after": 61}
+  ],
+  "deploys": [
+    {"ts": "2026-06-14T08:55:00Z", "service": "worker-service", "change": "v3.4.0: add in-process job de-duplication cache (dict keyed by payload hash); minor logging changes", "author": "release-bot"},
+    {"ts": "2026-06-14T07:40:00Z", "service": "redis-proxy", "change": "v0.8.2: connection keepalive tuning", "author": "infra"}
+  ],
+  "logs": [
+    {"ts": "2026-06-14T09:18:42Z", "service": "worker-service", "level": "INFO", "msg": "dedupe cache size=180210 entries (heap 410MB)"},
+    {"ts": "2026-06-14T09:20:15Z", "service": "worker-service", "level": "WARN", "msg": "GC pause 1200ms; heap usage 96%"},
+    {"ts": "2026-06-14T09:21:08Z", "service": "kubelet", "level": "ERROR", "msg": "Memory cgroup out of memory: Killed process worker (worker-service), exit code 137"},
+    {"ts": "2026-06-14T09:21:30Z", "service": "worker-service", "level": "INFO", "msg": "starting up, dedupe cache initialized empty"},
+    {"ts": "2026-06-14T09:22:50Z", "service": "redis-proxy", "level": "WARN", "msg": "slow command GET took 170ms"},
+    {"ts": "2026-06-14T09:23:40Z", "service": "scheduler", "level": "WARN", "msg": "queue depth 7400, oldest job age 41m"},
+    {"ts": "2026-06-14T09:25:12Z", "service": "worker-service", "level": "INFO", "msg": "dedupe cache size=171995 entries (heap 398MB)"},
+    {"ts": "2026-06-14T09:25:50Z", "service": "cluster-autoscaler", "level": "INFO", "msg": "scale-up requested, 2 pods pending, waiting for node"}
+  ]
+}

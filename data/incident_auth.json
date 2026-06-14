@@ -1,0 +1,36 @@
+{
+  "id": "INC-5210",
+  "title": "Login failures spike, TLS handshake errors on auth-service",
+  "started_at": "2026-06-14T00:01:00Z",
+  "summary": "Users cannot log in across web and mobile. Error rate on auth-service jumped to 64% at midnight UTC. Downstream services report TLS handshake failures when calling auth-service. The identity provider (Okta) looks healthy. Started exactly at 00:00 UTC.",
+  "true_root_cause_hidden": "The intermediate TLS certificate used by auth-service expired at 2026-06-14T00:00:00Z. Clients and downstream services now reject the handshake (certificate expired). Okta latency and an unrelated rate-limit warning are red herrings; the sharp onset exactly at midnight UTC points at a time-based expiry, not load.",
+  "alerts": [
+    {"ts": "2026-06-14T00:00:40Z", "severity": "critical", "source": "datadog", "text": "auth-service error rate > 50% (current 64%)"},
+    {"ts": "2026-06-14T00:01:05Z", "severity": "critical", "source": "synthetics", "text": "login journey failing: TLS handshake error from 5 regions"},
+    {"ts": "2026-06-14T00:02:20Z", "severity": "warning", "source": "okta", "text": "IdP token endpoint p95 latency 320ms (slightly elevated)"},
+    {"ts": "2026-06-14T00:03:10Z", "severity": "warning", "source": "datadog", "text": "api-gateway rate-limit rejections +8%"},
+    {"ts": "2026-06-14T00:04:00Z", "severity": "critical", "source": "pagerduty", "text": "auth availability SLO burn rate 30x"}
+  ],
+  "metrics": [
+    {"name": "auth.error_rate_pct", "before": 0.4, "after": 64.0},
+    {"name": "auth.successful_logins_per_min", "before": 4200, "after": 380},
+    {"name": "auth.tls_handshake_failures_per_min", "before": 0, "after": 5100},
+    {"name": "auth.cert.days_to_expiry", "before": 0, "after": -0.01, "note": "crossed zero at 00:00 UTC"},
+    {"name": "okta.token_p95_ms", "before": 240, "after": 320},
+    {"name": "auth.cpu_pct", "before": 38, "after": 22, "note": "lower because requests fail fast"},
+    {"name": "gateway.ratelimit_rejections_pct", "before": 1.0, "after": 9.0}
+  ],
+  "deploys": [
+    {"ts": "2026-06-13T16:30:00Z", "service": "api-gateway", "change": "v4.1.0: tighten default rate limits", "author": "platform"},
+    {"ts": "2026-06-10T11:00:00Z", "service": "auth-service", "change": "v2.9.1: dependency bumps, no cert/config changes", "author": "release-bot"}
+  ],
+  "logs": [
+    {"ts": "2026-06-14T00:00:03Z", "service": "checkout-service", "level": "ERROR", "msg": "calling auth-service: x509: certificate has expired or is not yet valid: current time 2026-06-14T00:00:03Z is after 2026-06-14T00:00:00Z"},
+    {"ts": "2026-06-14T00:00:11Z", "service": "auth-service", "level": "ERROR", "msg": "TLS handshake error from 10.2.4.9: remote error: tls: bad certificate"},
+    {"ts": "2026-06-14T00:00:45Z", "service": "mobile-bff", "level": "ERROR", "msg": "SSL_ERROR_EXPIRED_CERT_ALERT when connecting to auth-service:443"},
+    {"ts": "2026-06-14T00:01:30Z", "service": "okta-connector", "level": "INFO", "msg": "token endpoint responded 200 in 312ms"},
+    {"ts": "2026-06-14T00:02:05Z", "service": "auth-service", "level": "WARN", "msg": "leaf cert chain: intermediate 'Internal CA G2' notAfter=2026-06-14T00:00:00Z"},
+    {"ts": "2026-06-14T00:03:00Z", "service": "api-gateway", "level": "WARN", "msg": "rate limit exceeded for client batch (8% of requests)"},
+    {"ts": "2026-06-14T00:03:48Z", "service": "synthetics", "level": "ERROR", "msg": "login check failed: tls: failed to verify certificate: x509: certificate has expired"}
+  ]
+}

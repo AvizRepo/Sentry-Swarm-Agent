@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip --version)",
+      "Bash(python -m pip install -q httpx python-dotenv)",
+      "Bash(python backend/gemma_client.py)",
+      "Bash(python orchestrator.py)"
+    ]
+  }
+}

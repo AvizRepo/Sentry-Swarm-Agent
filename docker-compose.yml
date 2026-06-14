@@ -1,0 +1,10 @@
+services:
+  warroom:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMMA_API_KEY=${GEMMA_API_KEY}
+      - GEMMA_MODEL=${GEMMA_MODEL:-gemma-4-31b-it}
+      - GEMMA_BASE_URL=${GEMMA_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/models}
+    restart: unless-stopped
