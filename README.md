@@ -68,18 +68,16 @@ Python · FastAPI · asyncio · httpx · WebSocket · vanilla-JS SVG graph · Do
 
 ### Local
 ```bash
-cp .env.example .env          # then paste your GEMMA_API_KEY
 pip install -r requirements.txt
 cd backend
 uvicorn main:app --reload
-# open http://localhost:8000  →  click "Run Swarm"
+# open http://localhost:8000  →  Click "🔑 Key" to configure your API keys  →  click "Run Swarm"
 ```
 
 ### Docker
 ```bash
-cp .env.example .env          # paste your GEMMA_API_KEY
 docker compose up --build
-# open http://localhost:8000
+# open http://localhost:8000  →  Click "🔑 Key" to configure your API keys
 ```
 
 ### Headless (console)
